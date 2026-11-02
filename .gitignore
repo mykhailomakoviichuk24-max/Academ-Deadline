@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+test.db
+.env
+node_modules/
+dist/
+.angular/
