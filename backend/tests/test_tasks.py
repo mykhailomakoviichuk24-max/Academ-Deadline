@@ -123,3 +123,33 @@ async def test_task_isolation_and_foreign_subject(client):
         await client.patch(f"/api/tasks/{t['id']}/status", json={"status": "ACCEPTED"}, headers=h2)
     ).status_code == 404
     assert (await client.post("/api/tasks", json=_payload(s1["id"], d), headers=h2)).status_code == 404
+
+
+async def test_progress_update_and_accepted_forces_100(client):
+    h = await register(client)
+    other = await register(client, "other@x.com")
+    s = await make_subject(client, h)
+    d = datetime.now(timezone.utc) + timedelta(days=10)
+    r = await client.post(
+        "/api/tasks",
+        json=_payload(s["id"], d, task_type="COURSEWORK", progress=30),
+        headers=h,
+    )
+    assert r.status_code == 201 and r.json()["progress"] == 30
+    tid = r.json()["id"]
+
+    ok = await client.patch(f"/api/tasks/{tid}/progress", json={"progress": 60}, headers=h)
+    assert ok.status_code == 200 and ok.json()["progress"] == 60
+    assert (
+        await client.patch(f"/api/tasks/{tid}/progress", json={"progress": 101}, headers=h)
+    ).status_code == 422
+    assert (
+        await client.patch(f"/api/tasks/{tid}/progress", json={"progress": 10}, headers=other)
+    ).status_code == 404
+
+    done = await client.patch(f"/api/tasks/{tid}/status", json={"status": "ACCEPTED"}, headers=h)
+    assert done.json()["progress"] == 100
+    bad = await client.post(
+        "/api/tasks", json=_payload(s["id"], d, progress=150), headers=h
+    )
+    assert bad.status_code == 422

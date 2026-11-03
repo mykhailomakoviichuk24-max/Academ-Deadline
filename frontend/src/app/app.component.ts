@@ -21,6 +21,7 @@ type Theme = 'dark' | 'light';
 
         <nav aria-label="Основна навігація">
           <a routerLink="/kanban" routerLinkActive="active">Канбан</a>
+          <a routerLink="/calendar" routerLinkActive="active">Календар</a>
           <a routerLink="/subjects" routerLinkActive="active">Предмети</a>
           <a routerLink="/workload" routerLinkActive="active">Навантаження</a>
         </nav>
@@ -78,7 +79,7 @@ type Theme = 'dark' | 'light';
       .brand .mark { fill: var(--accent); }
       .brand path { fill: none; stroke: var(--accent-ink); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 
-      nav { display: flex; gap: 4px; flex: 1; }
+      nav { display: flex; gap: 4px; flex: 1; flex-wrap: wrap; }
       nav a { padding: 7px 14px; border-radius: 99px; color: var(--muted); text-decoration: none; font-weight: 500; transition: color 0.15s, background 0.15s; }
       nav a:hover { color: var(--text); }
       nav a.active { background: var(--surface-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--border); }

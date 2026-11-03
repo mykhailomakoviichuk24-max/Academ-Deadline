@@ -47,6 +47,9 @@ export class ApiService {
   ): Observable<Task> {
     return this.http.patch<Task>(`/api/tasks/${id}/status`, body);
   }
+  updateTaskProgress(id: string, progress: number): Observable<Task> {
+    return this.http.patch<Task>(`/api/tasks/${id}/progress`, { progress });
+  }
   deleteTask(id: string): Observable<void> {
     return this.http.delete<void>(`/api/tasks/${id}`);
   }

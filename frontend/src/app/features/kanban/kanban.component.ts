@@ -3,6 +3,7 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ApiService } from '../../core/api.service';
+import { progressClass } from '../../core/task-utils';
 import {
   PRIORITIES,
   ReviewStatus,
@@ -77,6 +78,19 @@ function span(ms: number): string {
                 </div>
                 <div class="muted small num">Оцінка: {{ t.estimated_hours }} год</div>
 
+                @if (t.task_type === 'COURSEWORK') {
+                  <div class="progress cw">
+                    <div class="label"><span>Готовність курсової</span><strong class="num">{{ t.progress }}%</strong></div>
+                    <div class="track" role="progressbar" aria-label="Готовність курсової" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="t.progress">
+                      <span class="fill {{ progressClass(t.progress) }}" [style.width.%]="t.progress"></span>
+                    </div>
+                    <div class="steps">
+                      <button class="step" (click)="bumpProgress(t, -10)" [disabled]="t.progress <= 0">−10%</button>
+                      <button class="step" (click)="bumpProgress(t, 10)" [disabled]="t.progress >= 100">+10%</button>
+                    </div>
+                  </div>
+                }
+
                 @if (t.review_notes) { <div class="notes">{{ t.review_notes }}</div> }
 
                 <div class="actions">
@@ -126,6 +140,12 @@ function span(ms: number): string {
               </select>
             </div>
           </div>
+          @if (form.controls.task_type.value === 'COURSEWORK') {
+            <div class="field">
+              <label for="f-progress">Готовність курсової: {{ form.controls.progress.value }}%</label>
+              <input id="f-progress" type="range" min="0" max="100" step="5" formControlName="progress" />
+            </div>
+          }
           <div class="field"><label for="f-desc">Опис</label><textarea id="f-desc" rows="3" formControlName="description"></textarea></div>
           @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
           <div class="row end">
@@ -202,6 +222,10 @@ function span(ms: number): string {
       .u-done .left { color: var(--muted); }
       .small { font-size: 12px; margin-top: 2px; }
 
+      .cw { margin-top: 10px; }
+      .steps { display: flex; gap: 6px; margin-top: 4px; }
+      .step { padding: 2px 10px; font-size: 12px; }
+
       .notes { margin-top: 10px; font-size: 13px; padding: 8px 10px; border-radius: 8px; background: var(--surface); border-left: 2px solid var(--violet); }
 
       .actions { display: flex; gap: 6px; margin-top: 12px; }
@@ -223,6 +247,7 @@ export class KanbanComponent {
   private api = inject(ApiService);
   private fb = inject(FormBuilder);
 
+  progressClass = progressClass;
   statuses = STATUSES;
   types = TASK_TYPES;
   priorities = PRIORITIES;
@@ -252,6 +277,7 @@ export class KanbanComponent {
     deadline: ['', Validators.required],
     estimated_hours: [2, [Validators.required, Validators.min(0.5)]],
     priority: ['MEDIUM', Validators.required],
+    progress: [0, [Validators.min(0), Validators.max(100)]],
     description: [''],
   });
 
@@ -312,10 +338,26 @@ export class KanbanComponent {
 
   private applyStatus(task: Task, status: ReviewStatus, review_notes?: string | null): void {
     const prev = this.tasks();
-    this.tasks.set(prev.map((t) => (t.id === task.id ? { ...t, status } : t)));
+    this.tasks.set(
+      prev.map((t) => (t.id === task.id ? { ...t, status, progress: status === 'ACCEPTED' ? 100 : t.progress } : t)),
+    );
     this.api.updateTaskStatus(task.id, { status, review_notes }).subscribe({
       next: (updated) => this.tasks.set(this.tasks().map((t) => (t.id === updated.id ? updated : t))),
       error: () => this.tasks.set(prev),
+    });
+  }
+
+  // ---- coursework progress (quick +/-10% buttons on the card) ----
+  bumpProgress(task: Task, delta: number): void {
+    this.setProgress(task, Math.min(100, Math.max(0, task.progress + delta)));
+  }
+
+  private setProgress(task: Task, progress: number): void {
+    const prev = this.tasks();
+    this.tasks.set(prev.map((t) => (t.id === task.id ? { ...t, progress } : t)));  // optimistic
+    this.api.updateTaskProgress(task.id, progress).subscribe({
+      next: (updated) => this.tasks.set(this.tasks().map((t) => (t.id === updated.id ? updated : t))),
+      error: () => this.tasks.set(prev),  // rollback
     });
   }
 
@@ -331,6 +373,7 @@ export class KanbanComponent {
         deadline: toLocalInput(task.deadline),
         estimated_hours: task.estimated_hours,
         priority: task.priority,
+        progress: task.progress ?? 0,
         description: task.description ?? '',
       });
     } else {
@@ -342,6 +385,7 @@ export class KanbanComponent {
         deadline: toLocalInput(tomorrow),
         estimated_hours: 2,
         priority: 'MEDIUM',
+        progress: 0,
         description: '',
       });
     }

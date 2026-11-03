@@ -75,6 +75,7 @@ class TaskBase(BaseModel):
     deadline: datetime
     estimated_hours: float = Field(default=1.0, gt=0, le=500)
     priority: TaskPriority = TaskPriority.MEDIUM
+    progress: int = Field(default=0, ge=0, le=100)
 
 
 class TaskCreate(TaskBase):
@@ -92,6 +93,10 @@ class TaskStatusUpdate(BaseModel):
     deadline: datetime | None = None
 
 
+class TaskProgressUpdate(BaseModel):
+    progress: int = Field(ge=0, le=100)
+
+
 class TaskOut(TaskBase, ORMModel):
     id: uuid.UUID
     status: ReviewStatus
@@ -106,6 +111,37 @@ class DayWorkload(BaseModel):
     total_hours: float
     tasks_count: int
     risk: str  # LOW | MEDIUM | HIGH
+    titles: list[str] = Field(default_factory=list)
+
+
+class TaskBrief(BaseModel):
+    id: uuid.UUID
+    title: str
+    subject: str
+    task_type: TaskType
+    priority: TaskPriority
+    status: ReviewStatus
+    deadline: datetime
+    estimated_hours: float
+    progress: int
+    hours_left: float  # negative = overdue
+
+
+class BreakdownItem(BaseModel):
+    key: str
+    label: str
+    hours: float
+    tasks: int
+
+
+class CompletionStats(BaseModel):
+    total_tasks: int
+    accepted_tasks: int
+    completion_percent: float  # accepted / all tasks
+    hours_total: float
+    hours_done: float  # accepted tasks count fully, others by their progress
+    progress_percent: float  # hours_done / hours_total
+    by_status: dict[str, int]
 
 
 class WorkloadOut(BaseModel):
@@ -116,3 +152,14 @@ class WorkloadOut(BaseModel):
     overall_risk: str
     burnout_warning: bool
     message: str
+    avg_hours_per_day: float = 0.0
+    busiest_day: DayWorkload | None = None
+    free_days: int = 0
+    by_subject: list[BreakdownItem] = Field(default_factory=list)
+    by_type: list[BreakdownItem] = Field(default_factory=list)
+    by_priority: list[BreakdownItem] = Field(default_factory=list)
+    completion: CompletionStats | None = None
+    overdue: list[TaskBrief] = Field(default_factory=list)
+    upcoming: list[TaskBrief] = Field(default_factory=list)
+    coursework: list[TaskBrief] = Field(default_factory=list)
+    coursework_avg_progress: float = 0.0

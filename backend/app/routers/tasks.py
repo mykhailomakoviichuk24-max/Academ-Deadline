@@ -10,7 +10,7 @@ from app.models.enums import ReviewStatus
 from app.models.user import User
 from app.repositories.subject_repository import SubjectRepository
 from app.repositories.task_repository import TaskRepository
-from app.schemas import TaskCreate, TaskOut, TaskStatusUpdate, TaskUpdate
+from app.schemas import TaskCreate, TaskOut, TaskProgressUpdate, TaskStatusUpdate, TaskUpdate
 from app.services.task_service import TaskService
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
@@ -47,6 +47,16 @@ async def update_status(
     svc: TaskService = Depends(_service),
 ):
     return await svc.update_status(user.id, task_id, data)
+
+
+@router.patch("/{task_id}/progress", response_model=TaskOut)
+async def update_progress(
+    task_id: uuid.UUID,
+    data: TaskProgressUpdate,
+    user: User = Depends(get_current_user),
+    svc: TaskService = Depends(_service),
+):
+    return await svc.update_progress(user.id, task_id, data.progress)
 
 
 @router.put("/{task_id}", response_model=TaskOut)

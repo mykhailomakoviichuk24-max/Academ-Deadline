@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Enum, Float, ForeignKey, String, Text, Uuid
+from sqlalchemy import Enum, Float, ForeignKey, Integer, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -36,5 +36,7 @@ class Task(Base):
         Enum(ReviewStatus, name="review_status"), default=ReviewStatus.TODO, index=True
     )
     review_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Readiness in percent (0-100); mainly used for coursework. ACCEPTED forces 100.
+    progress: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)

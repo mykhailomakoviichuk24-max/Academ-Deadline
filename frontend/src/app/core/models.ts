@@ -57,12 +57,13 @@ export interface Task {
   priority: TaskPriority;
   status: ReviewStatus;
   review_notes: string | null;
+  progress: number;
   created_at: string;
   updated_at: string;
 }
 export type TaskInput = Pick<
   Task,
-  'subject_id' | 'title' | 'task_type' | 'description' | 'deadline' | 'estimated_hours' | 'priority'
+  'subject_id' | 'title' | 'task_type' | 'description' | 'deadline' | 'estimated_hours' | 'priority' | 'progress'
 >;
 
 export interface DayWorkload {
@@ -70,6 +71,38 @@ export interface DayWorkload {
   total_hours: number;
   tasks_count: number;
   risk: 'LOW' | 'MEDIUM' | 'HIGH';
+  titles: string[];
+}
+
+export interface TaskBrief {
+  id: string;
+  title: string;
+  subject: string;
+  task_type: TaskType;
+  priority: TaskPriority;
+  status: ReviewStatus;
+  deadline: string;
+  estimated_hours: number;
+  progress: number;
+  /** negative = overdue */
+  hours_left: number;
+}
+
+export interface BreakdownItem {
+  key: string;
+  label: string;
+  hours: number;
+  tasks: number;
+}
+
+export interface CompletionStats {
+  total_tasks: number;
+  accepted_tasks: number;
+  completion_percent: number;
+  hours_total: number;
+  hours_done: number;
+  progress_percent: number;
+  by_status: Record<ReviewStatus, number>;
 }
 
 export interface Workload {
@@ -80,4 +113,15 @@ export interface Workload {
   overall_risk: 'LOW' | 'MEDIUM' | 'HIGH';
   burnout_warning: boolean;
   message: string;
+  avg_hours_per_day: number;
+  busiest_day: DayWorkload | null;
+  free_days: number;
+  by_subject: BreakdownItem[];
+  by_type: BreakdownItem[];
+  by_priority: BreakdownItem[];
+  completion: CompletionStats | null;
+  overdue: TaskBrief[];
+  upcoming: TaskBrief[];
+  coursework: TaskBrief[];
+  coursework_avg_progress: number;
 }

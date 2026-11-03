@@ -79,6 +79,8 @@ class TaskService:
         status_changed = data.status is not None and data.status != task.status
         if data.status is not None:
             task.status = data.status
+        if task.status == ReviewStatus.ACCEPTED:
+            task.progress = 100  # an accepted work is 100% ready
         if deadline_changed or status_changed:
             await self._reschedule(task)
         await self.tasks.commit()
@@ -89,6 +91,8 @@ class TaskService:
     ) -> Task:
         task = await self._get_or_404(user_id, task_id)
         task.status = data.status
+        if data.status == ReviewStatus.ACCEPTED:
+            task.progress = 100  # an accepted work is 100% ready
         if data.review_notes is not None:
             task.review_notes = data.review_notes
         deadline_changed = False
@@ -105,6 +109,12 @@ class TaskService:
             existing = await self.tasks.list_notifications(task.id)
             if not any(not n.is_sent for n in existing):
                 await self._reschedule(task)
+        await self.tasks.commit()
+        return await self.tasks.refresh(task)
+
+    async def update_progress(self, user_id: uuid.UUID, task_id: uuid.UUID, progress: int) -> Task:
+        task = await self._get_or_404(user_id, task_id)
+        task.progress = progress
         await self.tasks.commit()
         return await self.tasks.refresh(task)
 
