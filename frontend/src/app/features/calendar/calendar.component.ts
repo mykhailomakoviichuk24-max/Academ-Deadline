@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { TypeLegendComponent } from '../../core/type-legend.component';
 import { ApiService } from '../../core/api.service';
 import { STATUSES, Subject, TASK_TYPES, Task } from '../../core/models';
 import { Urgency, dayKey, progressClass, spanLabel, urgencyOf } from '../../core/task-utils';
@@ -19,7 +20,7 @@ const MAX_CHIPS = 3;
 @Component({
   selector: 'app-calendar',
   standalone: true,
-  imports: [DatePipe, RouterLink],
+  imports: [DatePipe, RouterLink, TypeLegendComponent],
   template: `
     <div class="toolbar">
       <div class="titles">
@@ -49,6 +50,8 @@ const MAX_CHIPS = 3;
           <button class="today-btn" (click)="goToday()">Сьогодні</button>
         </div>
 
+        <app-type-legend />
+
         <div class="weekdays" aria-hidden="true">
           @for (w of weekdays; track w) { <span>{{ w }}</span> }
         </div>
@@ -67,7 +70,7 @@ const MAX_CHIPS = 3;
               <span class="num-day num">{{ c.date.getDate() }}</span>
               <span class="chips">
                 @for (t of c.tasks.slice(0, maxChips); track t.id) {
-                  <span class="chip u-{{ urgency(t) }}" [title]="t.title">
+                  <span class="chip type-bar type-{{ t.task_type }} u-{{ urgency(t) }}" [title]="t.title">
                     <i class="dot"></i><span class="txt">{{ t.title }}</span>
                   </span>
                 }
@@ -101,7 +104,7 @@ const MAX_CHIPS = 3;
                   </div>
                   <div class="meta">
                     <span>{{ subjectName(t.subject_id) }}</span>
-                    <span class="pill">{{ typeLabel(t.task_type) }}</span>
+                    <span class="type-tag type-{{ t.task_type }}">{{ typeLabel(t.task_type) }}</span>
                     <span class="pill st">{{ statusLabel(t.status) }}</span>
                   </div>
                   <div class="left">{{ timeLabel(t) }}</div>

@@ -11,7 +11,7 @@ import {
   TaskBrief,
   Workload,
 } from '../../core/models';
-import { progressClass, spanLabel } from '../../core/task-utils';
+import { progressClass, spanLabel, TYPE_COLOR } from '../../core/task-utils';
 
 type Range = 'day' | 'week' | 'month';
 
@@ -185,7 +185,7 @@ type Range = 'day' | 'week' | 'month';
             <span class="prio prio-{{ t.priority }}">{{ prioLabel(t.priority) }}</span>
           }
         </div>
-        <div class="meta muted">{{ t.subject }} · {{ typeLabel(t.task_type) }} · {{ t.estimated_hours }} год</div>
+        <div class="meta muted">{{ t.subject }} · <span class="type-tag type-{{ t.task_type }}">{{ typeLabel(t.task_type) }}</span> · {{ t.estimated_hours }} год</div>
         <div class="when">
           <span class="left" [class.late]="t.hours_left < 0">{{ leftLabel(t) }}</span>
           <span class="muted num">{{ t.deadline | date: 'dd.MM, HH:mm' }}</span>
@@ -207,7 +207,7 @@ type Range = 'day' | 'week' | 'month';
             @for (i of items; track i.key) {
               <li>
                 <div class="hb-top"><span>{{ i.label }}</span><span class="muted num">{{ i.hours }} год · {{ i.tasks }} завд.</span></div>
-                <div class="progress"><div class="track"><span class="fill tone-{{ tone }}" [style.width.%]="share(i, items)"></span></div></div>
+                <div class="progress"><div class="track"><span class="fill tone-{{ tone }}" [style.width.%]="share(i, items)" [style.background]="i.color ?? null"></span></div></div>
               </li>
             }
           </ul>
@@ -307,8 +307,8 @@ export class WorkloadComponent {
   maxHours = computed(() => Math.max(8, ...(this.data()?.days.map((d) => d.total_hours) ?? [0])));
 
   subjectItems = computed<BreakdownItem[]>(() => this.data()?.by_subject ?? []);
-  typeItems = computed<BreakdownItem[]>(() =>
-    (this.data()?.by_type ?? []).map((i) => ({ ...i, label: this.typeLabel(i.key) })),
+  typeItems = computed<(BreakdownItem & { color?: string })[]>(() =>
+    (this.data()?.by_type ?? []).map((i) => ({ ...i, label: this.typeLabel(i.key), color: TYPE_COLOR[i.key] })),
   );
   prioItems = computed<BreakdownItem[]>(() =>
     (this.data()?.by_priority ?? []).map((i) => ({ ...i, label: this.prioLabel(i.key) })),

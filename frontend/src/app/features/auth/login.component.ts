@@ -33,6 +33,10 @@ import { AuthService } from '../../core/auth.service';
           <h2>{{ mode() === 'login' ? 'Вхід' : 'Створення акаунта' }}</h2>
 
           @if (mode() === 'register') {
+            <div class="role" role="radiogroup" aria-label="Роль">
+              <button type="button" role="radio" [attr.aria-checked]="role() === 'STUDENT'" [class.on]="role() === 'STUDENT'" (click)="setRole('STUDENT')">Студент</button>
+              <button type="button" role="radio" [attr.aria-checked]="role() === 'TEACHER'" [class.on]="role() === 'TEACHER'" (click)="setRole('TEACHER')">Викладач</button>
+            </div>
             <div class="field">
               <label for="full_name">Повне ім'я</label>
               <input id="full_name" formControlName="full_name" autocomplete="name" />
@@ -47,6 +51,20 @@ import { AuthService } from '../../core/auth.service';
             <input id="password" type="password" formControlName="password"
               [attr.autocomplete]="mode() === 'login' ? 'current-password' : 'new-password'" />
           </div>
+
+          @if (mode() === 'register') {
+            @if (role() === 'TEACHER') {
+              <div class="field">
+                <label for="teacher_code">Код доступу викладача</label>
+                <input id="teacher_code" formControlName="teacher_code" autocomplete="off" />
+              </div>
+            } @else {
+              <div class="field">
+                <label for="group_code">Код групи, якщо є (від викладача)</label>
+                <input id="group_code" formControlName="group_code" autocomplete="off" />
+              </div>
+            }
+          }
 
           @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
 
@@ -81,6 +99,9 @@ import { AuthService } from '../../core/auth.service';
       .form-side { display: grid; place-items: center; padding: 32px; }
       form { width: 100%; max-width: 400px; padding: 28px; }
       form h2 { font-size: 22px; margin-bottom: 20px; }
+      .role { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 16px; padding: 4px; border-radius: 99px; background: var(--surface-2); border: 1px solid var(--border); }
+      .role button { border: 0; border-radius: 99px; background: transparent; color: var(--muted); }
+      .role button.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
       .wide { width: 100%; padding: 11px; margin-top: 4px; }
       .switch { margin: 16px 0 0; font-size: 14px; text-align: center; }
 
@@ -101,11 +122,14 @@ export class LoginComponent {
   mode = signal<'login' | 'register'>('login');
   error = signal('');
   loading = signal(false);
+  role = signal<'STUDENT' | 'TEACHER'>('STUDENT');
 
   form = this.fb.nonNullable.group({
     full_name: [''],
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(6)]],
+    teacher_code: [''],
+    group_code: [''],
   });
 
   toggle(e: Event): void {
@@ -118,23 +142,51 @@ export class LoginComponent {
     name.updateValueAndValidity();
   }
 
+  private translate(detail: string): string {
+    const map: Record<string, string> = {
+      'Invalid credentials': 'Невірний email або пароль.',
+      'Invalid teacher access code': 'Невірний код доступу викладача.',
+      'Group not found': 'Групу з таким кодом не знайдено.',
+      'Email already registered': 'Цей email уже зареєстровано.',
+    };
+    return map[detail] ?? detail;
+  }
+
+  setRole(r: 'STUDENT' | 'TEACHER'): void {
+    this.role.set(r);
+    const code = this.form.controls.teacher_code;
+    code.setValidators(r === 'TEACHER' ? [Validators.required] : []);
+    code.updateValueAndValidity();
+  }
+
   submit(): void {
     if (this.form.invalid) return;
-    const { email, password, full_name } = this.form.getRawValue();
+    const { email, password, full_name, teacher_code, group_code } = this.form.getRawValue();
     this.loading.set(true);
     this.error.set('');
     const req =
       this.mode() === 'login'
         ? this.auth.login(email, password)
-        : this.auth.register(email, password, full_name);
+        : this.auth.register({
+            email,
+            password,
+            full_name,
+            role: this.role(),
+            teacher_code: this.role() === 'TEACHER' ? teacher_code.trim() : null,
+            group_code: this.role() === 'STUDENT' && group_code.trim() ? group_code.trim() : null,
+          });
     req.subscribe({
-      next: () => this.router.navigate(['/kanban']),
+      next: () =>
+        this.auth.loadUser().subscribe({
+          next: (u) => this.router.navigate([u.role === 'TEACHER' ? '/teacher' : '/kanban']),
+          error: () => this.router.navigate(['/kanban']),
+        }),
       error: (e) => {
         this.loading.set(false);
         const detail = e.error?.detail;
         this.error.set(
           typeof detail === 'string'
-            ? detail === 'Invalid credentials' ? 'Невірний email або пароль.' : detail
+            ? this.translate(detail)
             : 'Не вдалося виконати запит. Перевірте дані й спробуйте ще раз.',
         );
       },

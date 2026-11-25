@@ -27,6 +27,10 @@ async def init_db() -> None:
         await conn.run_sync(Base.metadata.create_all)
         if engine.dialect.name == "postgresql":
             # create_all never alters existing tables: add columns introduced later.
-            await conn.execute(
-                text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS progress INTEGER NOT NULL DEFAULT 0")
-            )
+            for stmt in (
+                "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS progress INTEGER NOT NULL DEFAULT 0",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(16) NOT NULL DEFAULT 'STUDENT'",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS group_id UUID REFERENCES groups(id) ON DELETE SET NULL",
+                "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS assigned_by UUID REFERENCES users(id) ON DELETE SET NULL",
+            ):
+                await conn.execute(text(stmt))

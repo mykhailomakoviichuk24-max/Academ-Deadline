@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60
     refresh_token_expire_days: int = 7
     cors_origins: str = "http://localhost:4200"
+    # secret code that allows registering as a teacher (empty = teacher registration disabled)
+    teacher_access_code: str = ""
     telegram_bot_token: str = ""
     telegram_bot_username: str = "deadline_tracker_bot"
     scheduler_interval_seconds: int = 60

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_teacher
 from app.models.subject import Subject
 from app.models.user import User
 from app.repositories.subject_repository import SubjectRepository
@@ -24,6 +24,7 @@ async def _get_or_404(repo: SubjectRepository, user: User, subject_id: uuid.UUID
     return subject
 
 
+# Subjects are managed by teachers; students only read the ones they received.
 @router.get("", response_model=list[SubjectOut])
 async def list_subjects(user: User = Depends(get_current_user), repo=Depends(_repo)):
     return await repo.list(user.id)
@@ -31,7 +32,7 @@ async def list_subjects(user: User = Depends(get_current_user), repo=Depends(_re
 
 @router.post("", response_model=SubjectOut, status_code=201)
 async def create_subject(
-    data: SubjectCreate, user: User = Depends(get_current_user), repo=Depends(_repo)
+    data: SubjectCreate, user: User = Depends(require_teacher), repo=Depends(_repo)
 ):
     return await repo.add(Subject(user_id=user.id, **data.model_dump()))
 
@@ -40,7 +41,7 @@ async def create_subject(
 async def update_subject(
     subject_id: uuid.UUID,
     data: SubjectUpdate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_teacher),
     repo=Depends(_repo),
 ):
     subject = await _get_or_404(repo, user, subject_id)
@@ -51,6 +52,6 @@ async def update_subject(
 
 @router.delete("/{subject_id}", status_code=204)
 async def delete_subject(
-    subject_id: uuid.UUID, user: User = Depends(get_current_user), repo=Depends(_repo)
+    subject_id: uuid.UUID, user: User = Depends(require_teacher), repo=Depends(_repo)
 ):
     await repo.delete(await _get_or_404(repo, user, subject_id))

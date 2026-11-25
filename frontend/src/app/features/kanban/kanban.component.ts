@@ -2,6 +2,7 @@ import { CdkDrag, CdkDragDrop, CdkDropList, CdkDropListGroup } from '@angular/cd
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { TypeLegendComponent } from '../../core/type-legend.component';
 import { ApiService } from '../../core/api.service';
 import { progressClass } from '../../core/task-utils';
 import {
@@ -35,12 +36,13 @@ function span(ms: number): string {
 @Component({
   selector: 'app-kanban',
   standalone: true,
-  imports: [CdkDropListGroup, CdkDropList, CdkDrag, ReactiveFormsModule, DatePipe],
+  imports: [CdkDropListGroup, CdkDropList, CdkDrag, ReactiveFormsModule, DatePipe, TypeLegendComponent],
   template: `
     <div class="toolbar">
       <div class="titles">
         <h2>Канбан</h2>
         <span class="muted">Активних завдань: {{ activeCount() }}</span>
+        <app-type-legend />
       </div>
       <select class="filter" aria-label="Фільтр за предметом" [value]="subjectFilter()" (change)="subjectFilter.set($any($event.target).value)">
         <option value="">Усі предмети</option>
@@ -50,7 +52,7 @@ function span(ms: number): string {
     </div>
 
     @if (!subjects().length) {
-      <div class="card hint">Щоб додати завдання, спершу створіть хоча б один предмет у розділі «Предмети».</div>
+      <div class="card hint">Предмети додає викладач: вони з'являться тут, коли вам видадуть перше завдання або додадуть предмет.</div>
     }
 
     <div class="board" cdkDropListGroup>
@@ -59,7 +61,7 @@ function span(ms: number): string {
           <h3><i class="dot dot-{{ col.key }}"></i>{{ col.label }}<span class="count num">{{ byStatus()[col.key].length }}</span></h3>
           <div class="list" cdkDropList [cdkDropListData]="col.key" (cdkDropListDropped)="drop($event)">
             @for (t of byStatus()[col.key]; track t.id) {
-              <article class="task u-{{ urgency(t) }}" cdkDrag [cdkDragData]="t">
+              <article class="task type-bar type-{{ t.task_type }} u-{{ urgency(t) }}" cdkDrag [cdkDragData]="t">
                 <div class="head">
                   <strong class="title">{{ t.title }}</strong>
                   @if (t.priority === 'HIGH' || t.priority === 'CRITICAL') {
@@ -67,9 +69,11 @@ function span(ms: number): string {
                   }
                 </div>
 
+                @if (t.assigned_by) { <span class="from-teacher">Від викладача</span> }
+
                 <div class="meta">
                   <span>{{ subjectName(t.subject_id) }}</span>
-                  <span class="type">{{ typeLabel(t.task_type) }}</span>
+                  <span class="type-tag type-{{ t.task_type }}">{{ typeLabel(t.task_type) }}</span>
                 </div>
 
                 <div class="when">
@@ -95,14 +99,18 @@ function span(ms: number): string {
 
                 <div class="actions">
                   <select [value]="t.status" aria-label="Статус" (change)="changeStatus(t, $any($event.target).value)">
-                    @for (s of statuses; track s.key) { <option [value]="s.key">{{ s.label }}</option> }
+                    @for (s of statuses; track s.key) {
+                      <option [value]="s.key" [disabled]="!canSet(t, s.key)">{{ s.label }}</option>
+                    }
                   </select>
-                  <button class="icon-btn" (click)="openForm(t)" aria-label="Редагувати" title="Редагувати">
-                    <svg viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 00-4-4L4 16v4z" /></svg>
-                  </button>
-                  <button class="icon-btn danger" (click)="remove(t)" aria-label="Видалити" title="Видалити">
-                    <svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg>
-                  </button>
+                  @if (!t.assigned_by) {
+                    <button class="icon-btn" (click)="openForm(t)" aria-label="Редагувати" title="Редагувати">
+                      <svg viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 00-4-4L4 16v4z" /></svg>
+                    </button>
+                    <button class="icon-btn danger" (click)="remove(t)" aria-label="Видалити" title="Видалити">
+                      <svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg>
+                    </button>
+                  }
                 </div>
               </article>
             } @empty {
@@ -226,6 +234,7 @@ function span(ms: number): string {
       .steps { display: flex; gap: 6px; margin-top: 4px; }
       .step { padding: 2px 10px; font-size: 12px; }
 
+      .from-teacher { align-self: start; width: fit-content; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: color-mix(in srgb, var(--violet) 18%, transparent); color: var(--violet); }
       .notes { margin-top: 10px; font-size: 13px; padding: 8px 10px; border-radius: 8px; background: var(--surface); border-left: 2px solid var(--violet); }
 
       .actions { display: flex; gap: 6px; margin-top: 12px; }
@@ -318,7 +327,15 @@ export class KanbanComponent {
     this.changeStatus(e.item.data as Task, e.container.data);
   }
 
+  /** «Прийнято» і «Потребує правок» ставить лише викладач. */
+  canSet(task: Task, status: ReviewStatus): boolean {
+    if (status === task.status) return true;
+    if (task.status === 'ACCEPTED') return false;
+    return status !== 'ACCEPTED' && status !== 'REQUIRES_CHANGES';
+  }
+
   changeStatus(task: Task, status: ReviewStatus): void {
+    if (!this.canSet(task, status)) { this.tasks.set([...this.tasks()]); return; }
     if (task.status === status) return;
     if (status === 'REQUIRES_CHANGES' || status === 'UNDER_REVIEW') {
       this.notesFor.set({ task, status });

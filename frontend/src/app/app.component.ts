@@ -1,5 +1,6 @@
 import { Component, effect, inject, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { ApiService } from './core/api.service';
 import { AuthService } from './core/auth.service';
 
 type Theme = 'dark' | 'light';
@@ -11,7 +12,7 @@ type Theme = 'dark' | 'light';
   template: `
     @if (auth.isAuthenticated()) {
       <header class="topbar">
-        <a class="brand" routerLink="/kanban" aria-label="Deadline Tracker">
+        <a class="brand" [routerLink]="auth.isTeacher() ? '/teacher' : '/kanban'" aria-label="Deadline Tracker">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <rect x="2" y="2" width="20" height="20" rx="6" class="mark" />
             <path d="M7.5 12.5l3 3 6-7" />
@@ -20,19 +21,32 @@ type Theme = 'dark' | 'light';
         </a>
 
         <nav aria-label="Основна навігація">
-          <a routerLink="/kanban" routerLinkActive="active">Канбан</a>
-          <a routerLink="/calendar" routerLinkActive="active">Календар</a>
-          <a routerLink="/subjects" routerLinkActive="active">Предмети</a>
-          <a routerLink="/workload" routerLinkActive="active">Навантаження</a>
+          @if (auth.isTeacher()) {
+            <a routerLink="/teacher" routerLinkActive="active">Кабінет викладача</a>
+            <a routerLink="/subjects" routerLinkActive="active">Предмети</a>
+          } @else {
+            <a routerLink="/kanban" routerLinkActive="active">Канбан</a>
+            <a routerLink="/calendar" routerLinkActive="active">Календар</a>
+            <a routerLink="/workload" routerLinkActive="active">Навантаження</a>
+          }
         </nav>
 
         <div class="right">
           @if (auth.user(); as u) {
             <span class="who">{{ u.full_name }}</span>
-            @if (u.telegram_linked) {
-              <span class="tg-ok">Telegram підключено</span>
+            @if (u.role === 'TEACHER') {
+              <span class="badge-role">Викладач</span>
             } @else {
-              <button (click)="linkTelegram()">Підключити Telegram</button>
+              @if (u.group_name) {
+                <span class="badge-role" title="Ваша група">Група {{ u.group_name }}</span>
+              } @else {
+                <button (click)="joinGroup()">Вступити в групу</button>
+              }
+              @if (u.telegram_linked) {
+                <span class="tg-ok">Telegram підключено</span>
+              } @else {
+                <button (click)="linkTelegram()">Підключити Telegram</button>
+              }
             }
           }
           <button class="icon-btn" (click)="toggleTheme()" [attr.aria-label]="themeLabel()" [title]="themeLabel()">
@@ -86,6 +100,7 @@ type Theme = 'dark' | 'light';
 
       .right { display: flex; gap: 10px; align-items: center; }
       .who { color: var(--muted); font-size: 14px; }
+      .badge-role { font-size: 13px; font-weight: 500; padding: 4px 12px; border-radius: 99px; background: color-mix(in srgb, var(--violet) 16%, transparent); color: var(--violet); }
       .tg-ok { color: var(--accent); font-size: 13px; font-weight: 500; padding: 4px 12px; border-radius: 99px; background: color-mix(in srgb, var(--accent) 14%, transparent); }
 
       .tg-banner { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 10px 28px; background: var(--surface-2); border-bottom: 1px solid var(--border); font-size: 14px; }
@@ -99,6 +114,7 @@ type Theme = 'dark' | 'light';
 })
 export class AppComponent {
   auth = inject(AuthService);
+  private api = inject(ApiService);
   tgLink = signal<string | null>(null);
   copied = signal(false);
   theme = signal<Theme>(this.readTheme());
@@ -126,6 +142,15 @@ export class AppComponent {
 
   toggleTheme(): void {
     this.theme.set(this.theme() === 'dark' ? 'light' : 'dark');
+  }
+
+  joinGroup(): void {
+    const code = prompt('Введіть код групи, який дав викладач');
+    if (!code?.trim()) return;
+    this.api.joinGroup(code.trim()).subscribe({
+      next: () => this.auth.loadUser().subscribe(),
+      error: (e) => alert(e.status === 404 ? 'Групу з таким кодом не знайдено.' : 'Не вдалося вступити в групу.'),
+    });
   }
 
   linkTelegram(): void {

@@ -15,6 +15,9 @@
   --warn: #ffb84d;
   --info: #6c9bff;
   --violet: #a78bfa;
+  --type-lab: #5aa9ff;
+  --type-prac: #ff7ab6;
+  --type-course: #ffc247;
 
   --shadow: none;
   --overlay: rgba(5, 8, 20, 0.66);
@@ -36,6 +39,9 @@
   --warn: #b86e00;
   --info: #3563e9;
   --violet: #7c4ddb;
+  --type-lab: #2563eb;
+  --type-prac: #d6336c;
+  --type-course: #b7791f;
 
   --shadow: 0 1px 2px rgba(21, 26, 51, 0.06), 0 6px 18px rgba(21, 26, 51, 0.05);
   --overlay: rgba(21, 26, 51, 0.4);
@@ -180,3 +186,16 @@ button.icon-btn svg { width: 16px; height: 16px; stroke: currentColor; fill: non
 .progress .fill.p-low { background: var(--danger); }
 .progress .fill.p-mid { background: var(--warn); }
 .progress .label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+
+/* Task type colours: set --tc on any element with .type-<TYPE> */
+.type-LABORATORY { --tc: var(--type-lab); }
+.type-PRACTICAL { --tc: var(--type-prac); }
+.type-COURSEWORK { --tc: var(--type-course); }
+.type-bar { border-left: 3px solid var(--tc); }
+.type-tag {
+  display: inline-flex; align-items: center; gap: 6px; padding: 0 9px; border-radius: 99px;
+  font-size: 12px; font-weight: 600; line-height: 1.6; white-space: nowrap;
+  color: var(--tc); background: color-mix(in srgb, var(--tc) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tc) 40%, transparent);
+}
+.type-tag::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--tc); }

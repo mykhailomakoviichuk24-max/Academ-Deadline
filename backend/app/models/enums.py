@@ -4,6 +4,11 @@ from datetime import datetime, timezone
 from sqlalchemy import DateTime, TypeDecorator
 
 
+class UserRole(str, enum.Enum):
+    STUDENT = "STUDENT"
+    TEACHER = "TEACHER"
+
+
 class TaskType(str, enum.Enum):
     LABORATORY = "LABORATORY"
     PRACTICAL = "PRACTICAL"

@@ -36,3 +36,10 @@ export function progressClass(p: number): string {
   if (p < 70) return 'p-mid';
   return '';
 }
+
+/** CSS colour of a task type (for charts); same tokens as the .type-* classes. */
+export const TYPE_COLOR: Record<string, string> = {
+  LABORATORY: 'var(--type-lab)',
+  PRACTICAL: 'var(--type-prac)',
+  COURSEWORK: 'var(--type-course)',
+};

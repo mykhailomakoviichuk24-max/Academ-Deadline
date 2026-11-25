@@ -35,6 +35,10 @@ class Task(Base):
     status: Mapped[ReviewStatus] = mapped_column(
         Enum(ReviewStatus, name="review_status"), default=ReviewStatus.TODO, index=True
     )
+    # set when the task was issued by a teacher (student cannot edit/delete it)
+    assigned_by: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     review_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Readiness in percent (0-100); mainly used for coursework. ACCEPTED forces 100.
     progress: Mapped[int] = mapped_column(Integer, default=0, server_default="0")

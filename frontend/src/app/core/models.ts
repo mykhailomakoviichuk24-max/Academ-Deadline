@@ -28,6 +28,8 @@ export interface User {
   email: string;
   full_name: string;
   telegram_linked: boolean;
+  role: 'STUDENT' | 'TEACHER';
+  group_name: string | null;
   created_at: string;
 }
 
@@ -58,6 +60,8 @@ export interface Task {
   status: ReviewStatus;
   review_notes: string | null;
   progress: number;
+  /** set => the task was issued by a teacher (read-only for the student) */
+  assigned_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -124,4 +128,68 @@ export interface Workload {
   upcoming: TaskBrief[];
   coursework: TaskBrief[];
   coursework_avg_progress: number;
+}
+
+// ---- Teacher ----
+export interface Group {
+  id: string;
+  name: string;
+  invite_code: string;
+  students_count: number;
+}
+
+export interface StudentStats {
+  id: string;
+  full_name: string;
+  email: string;
+  total_tasks: number;
+  accepted: number;
+  under_review: number;
+  overdue: number;
+  avg_progress: number;
+}
+
+export interface TeacherTask {
+  id: string;
+  student_id: string;
+  student_name: string;
+  subject_name: string;
+  title: string;
+  task_type: TaskType;
+  deadline: string;
+  estimated_hours: number;
+  priority: TaskPriority;
+  status: ReviewStatus;
+  review_notes: string | null;
+  progress: number;
+}
+
+export interface AssignmentInput {
+  group_id: string;
+  subject_name: string;
+  title: string;
+  task_type: TaskType;
+  description: string | null;
+  deadline: string;
+  estimated_hours: number;
+  priority: TaskPriority;
+  student_ids?: string[] | null;
+}
+
+export interface TypeStat { key: TaskType; total: number; accepted: number; avg_progress: number }
+export interface SubjectStat { subject: string; total: number; accepted: number; overdue: number; avg_progress: number }
+export interface GroupDayLoad { date: string; tasks: number; hours: number; hours_per_student: number; risk: 'LOW' | 'MEDIUM' | 'HIGH' }
+export interface TeacherAnalytics {
+  students_count: number;
+  tasks_total: number;
+  by_status: Record<string, number>;
+  overdue: number;
+  completion_percent: number;
+  avg_progress: number;
+  review_queue: number;
+  by_type: TypeStat[];
+  by_subject: SubjectStat[];
+  load: GroupDayLoad[];
+  busiest_day: GroupDayLoad | null;
+  students: StudentStats[];
 }

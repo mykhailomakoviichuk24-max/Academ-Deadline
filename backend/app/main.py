@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.database import init_db
-from app.routers import analytics, auth, subjects, tasks, telegram
+from app.routers import analytics, auth, groups, subjects, tasks, teacher, telegram
 
 
 @asynccontextmanager
@@ -31,7 +31,15 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    for r in (auth.router, telegram.router, subjects.router, tasks.router, analytics.router):
+    for r in (
+        auth.router,
+        telegram.router,
+        subjects.router,
+        tasks.router,
+        analytics.router,
+        groups.router,
+        teacher.router,
+    ):
         app.include_router(r)
 
     @app.get("/api/health", tags=["health"])

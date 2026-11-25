@@ -14,6 +14,7 @@ export class AuthService {
   readonly token = signal<string | null>(localStorage.getItem(TOKEN_KEY));
   readonly user = signal<User | null>(null);
   readonly isAuthenticated = computed(() => !!this.token());
+  readonly isTeacher = computed(() => this.user()?.role === 'TEACHER');
 
   login(email: string, password: string): Observable<TokenResponse> {
     return this.http
@@ -21,9 +22,16 @@ export class AuthService {
       .pipe(tap((r) => this.setToken(r.access_token)));
   }
 
-  register(email: string, password: string, full_name: string): Observable<TokenResponse> {
+  register(body: {
+    email: string;
+    password: string;
+    full_name: string;
+    role: 'STUDENT' | 'TEACHER';
+    teacher_code?: string | null;
+    group_code?: string | null;
+  }): Observable<TokenResponse> {
     return this.http
-      .post<TokenResponse>('/api/auth/register', { email, password, full_name })
+      .post<TokenResponse>('/api/auth/register', body)
       .pipe(tap((r) => this.setToken(r.access_token)));
   }
 

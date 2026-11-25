@@ -1,4 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
+import { AuthService } from '../../core/auth.service';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ApiService } from '../../core/api.service';
 import { Subject, SubjectInput } from '../../core/models';
@@ -45,7 +46,7 @@ import { Subject, SubjectInput } from '../../core/models';
         } @empty {
           <div class="card empty">
             <strong>Предметів ще немає</strong>
-            <span class="muted">Додайте перший у формі зліва, і з'явиться можливість створювати завдання.</span>
+            <span class="muted">Додайте перший у формі зліва: його можна буде видавати групам як завдання.</span>
           </div>
         }
       </div>
@@ -66,6 +67,7 @@ import { Subject, SubjectInput } from '../../core/models';
 export class SubjectsComponent {
   private api = inject(ApiService);
   private fb = inject(FormBuilder);
+  private auth = inject(AuthService);
 
   subjects = signal<Subject[]>([]);
   editingId = signal<string | null>(null);
@@ -78,7 +80,7 @@ export class SubjectsComponent {
     resources_url: [''],
   });
 
-  constructor() { this.load(); }
+  constructor() { this.load(); this.reset(); }
 
   load(): void { this.api.listSubjects().subscribe((s) => this.subjects.set(s)); }
 
@@ -94,7 +96,10 @@ export class SubjectsComponent {
   reset(): void {
     this.editingId.set(null);
     this.error.set('');
-    this.form.reset();
+    this.form.reset({
+      teacher_name: this.auth.user()?.full_name ?? '',
+      teacher_contact: this.auth.user()?.email ?? '',
+    });
   }
 
   save(): void {

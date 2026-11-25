@@ -18,6 +18,10 @@ OFFSETS: list[tuple[NotificationType, timedelta]] = [
 ]
 
 
+# statuses that only a teacher may set
+REVIEWER_ONLY = (ReviewStatus.ACCEPTED, ReviewStatus.REQUIRES_CHANGES)
+
+
 def _aware(dt: datetime) -> datetime:
     return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
 
@@ -58,9 +62,11 @@ class TaskService:
         if task.status != ReviewStatus.ACCEPTED:
             self._schedule(task)
 
-    async def create(self, user_id: uuid.UUID, data: TaskCreate) -> Task:
+    async def create(
+        self, user_id: uuid.UUID, data: TaskCreate, assigned_by: uuid.UUID | None = None
+    ) -> Task:
         await self._ensure_subject(user_id, data.subject_id)
-        task = Task(user_id=user_id, **data.model_dump())
+        task = Task(user_id=user_id, assigned_by=assigned_by, **data.model_dump())
         task.deadline = _aware(task.deadline)
         await self.tasks.add(task)
         self._schedule(task)
@@ -69,6 +75,11 @@ class TaskService:
 
     async def update(self, user_id: uuid.UUID, task_id: uuid.UUID, data: TaskUpdate) -> Task:
         task = await self._get_or_404(user_id, task_id)
+        self._forbid_if_assigned(task, "edit")
+        if data.status in REVIEWER_ONLY and data.status != task.status:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN, "Only the teacher can accept or return a task"
+            )
         await self._ensure_subject(user_id, data.subject_id)
         deadline_changed = _aware(data.deadline) != _aware(task.deadline)
         for field, value in data.model_dump(exclude={"status", "review_notes"}).items():
@@ -86,10 +97,26 @@ class TaskService:
         await self.tasks.commit()
         return await self.tasks.refresh(task)
 
+    @staticmethod
+    def _forbid_if_assigned(task: Task, action: str) -> None:
+        if task.assigned_by is not None:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN, f"A task issued by a teacher cannot be {action}ed by the student"
+            )
+
     async def update_status(
-        self, user_id: uuid.UUID, task_id: uuid.UUID, data: TaskStatusUpdate
+        self,
+        user_id: uuid.UUID,
+        task_id: uuid.UUID,
+        data: TaskStatusUpdate,
+        by_teacher: bool = False,
     ) -> Task:
         task = await self._get_or_404(user_id, task_id)
+        if not by_teacher and (data.status in REVIEWER_ONLY or task.status == ReviewStatus.ACCEPTED):
+            # a student can neither accept/return a task nor reopen an accepted one
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN, "Only the teacher can accept or return a task"
+            )
         task.status = data.status
         if data.status == ReviewStatus.ACCEPTED:
             task.progress = 100  # an accepted work is 100% ready
@@ -120,4 +147,5 @@ class TaskService:
 
     async def delete(self, user_id: uuid.UUID, task_id: uuid.UUID) -> None:
         task = await self._get_or_404(user_id, task_id)
+        self._forbid_if_assigned(task, "delet")
         await self.tasks.delete(task)

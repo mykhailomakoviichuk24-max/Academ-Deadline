@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './core/auth.guard';
+import { studentGuard, teacherGuard } from './core/auth.guard';
 
 export const routes: Routes = [
   {
@@ -8,26 +8,32 @@ export const routes: Routes = [
   },
   {
     path: 'kanban',
-    canActivate: [authGuard],
+    canActivate: [studentGuard],
     loadComponent: () => import('./features/kanban/kanban.component').then((m) => m.KanbanComponent),
   },
   {
     path: 'subjects',
-    canActivate: [authGuard],
+    canActivate: [teacherGuard],
     loadComponent: () =>
       import('./features/subjects/subjects.component').then((m) => m.SubjectsComponent),
   },
   {
     path: 'calendar',
-    canActivate: [authGuard],
+    canActivate: [studentGuard],
     loadComponent: () =>
       import('./features/calendar/calendar.component').then((m) => m.CalendarComponent),
   },
   {
     path: 'workload',
-    canActivate: [authGuard],
+    canActivate: [studentGuard],
     loadComponent: () =>
       import('./features/workload/workload.component').then((m) => m.WorkloadComponent),
+  },
+  {
+    path: 'teacher',
+    canActivate: [teacherGuard],
+    loadComponent: () =>
+      import('./features/teacher/teacher.component').then((m) => m.TeacherComponent),
   },
   { path: '', pathMatch: 'full', redirectTo: 'kanban' },
   { path: '**', redirectTo: 'kanban' },

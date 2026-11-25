@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
 from app.core.deps import get_current_user
+from app.models.group import Group
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
 from app.schemas import (
@@ -37,11 +39,20 @@ async def refresh(data: RefreshRequest, svc: AuthService = Depends(_service)):
 
 
 @router.get("/me", response_model=UserOut)
-async def me(user: User = Depends(get_current_user)):
+async def me(
+    user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)
+):
+    group_name = None
+    if user.group_id:
+        group_name = (
+            await session.execute(select(Group.name).where(Group.id == user.group_id))
+        ).scalar_one_or_none()
     return UserOut(
         id=user.id,
         email=user.email,
         full_name=user.full_name,
         telegram_linked=user.telegram_chat_id is not None,
+        role=user.role,
+        group_name=group_name,
         created_at=user.created_at,
     )

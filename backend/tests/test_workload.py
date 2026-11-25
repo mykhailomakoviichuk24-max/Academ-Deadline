@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 from app.services.workload_service import day_risk
-from tests.conftest import make_subject, register
+from tests.conftest import make_subject, register, teacher_set_status
 
 
 def test_day_risk_thresholds():
@@ -44,7 +44,7 @@ async def test_workload_ignores_accepted_and_empty(client):
     assert (await client.get("/api/analytics/workload?range=year", headers=h)).status_code == 422
 
 
-async def test_workload_extended_analytics(client):
+async def test_workload_extended_analytics(client, session):
     h = await register(client)
     s = await make_subject(client, h, "Databases")
     now = datetime.now(timezone.utc)
@@ -69,7 +69,7 @@ async def test_workload_extended_analytics(client):
     await mk("Lab", "LABORATORY", now + timedelta(days=2), 2)
     await mk("Late lab", "LABORATORY", now - timedelta(days=1), 2)
     done = await mk("Done lab", "LABORATORY", now + timedelta(days=1), 2)
-    await client.patch(f"/api/tasks/{done['id']}/status", json={"status": "ACCEPTED"}, headers=h)
+    await teacher_set_status(session, done["id"], "ACCEPTED")
 
     data = (await client.get("/api/analytics/workload?range=week", headers=h)).json()
     assert data["avg_hours_per_day"] == round(data["total_hours"] / 7, 2)
